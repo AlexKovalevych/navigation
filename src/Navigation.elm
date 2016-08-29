@@ -50,13 +50,13 @@ type MyMsg msg
 programWithFlags
   : Parser data
   ->
-    { init : flags -> data -> (model, Cmd msg)
+    { init : {flags | location : Maybe Location} -> data -> (model, Cmd msg)
     , update : msg -> model -> (model, Cmd msg)
     , urlUpdate : data -> model -> (model, Cmd msg)
     , view : model -> Html msg
     , subscriptions : model -> Sub msg
     }
-  -> Program flags
+  -> Program {flags | location : Maybe Location}
 programWithFlags (Parser parser) stuff =
   let
     update msg model =
@@ -77,11 +77,11 @@ programWithFlags (Parser parser) stuff =
     view model =
       App.map UserMsg (stuff.view model)
 
-    location =
-      Native.Navigation.getLocation ()
-
     init flags =
-      updateHelp UserMsg (stuff.init flags (parser location))
+      let
+        location = initialLocation(flags)
+      in
+        updateHelp UserMsg (stuff.init flags (parser location))
   in
     App.programWithFlags
       { init = init
@@ -89,6 +89,12 @@ programWithFlags (Parser parser) stuff =
       , update = update
       , subscriptions = subs
       }
+
+
+initialLocation : { flags | location : Maybe Location } -> Location
+initialLocation {location} = case location of
+  Just location -> location
+  Nothing -> Native.Navigation.getLocation ()
 
 
 updateHelp : (a -> b) -> (model, Cmd a) -> (model, Cmd b)
@@ -122,7 +128,7 @@ program
     , view : model -> Html msg
     , subscriptions : model -> Sub msg
     }
-  -> Program Never
+  -> Program {data | location : Maybe Location}
 program parser stuff =
   programWithFlags parser { stuff | init = \_ -> stuff.init }
 
@@ -222,20 +228,7 @@ with locations directly.
 
 [parse]: https://github.com/evancz/url-parser
 -}
-type alias Location =
-  { href : String
-  , host : String
-  , hostname : String
-  , protocol : String
-  , origin : String
-  , port_ : String
-  , pathname : String
-  , search : String
-  , hash : String
-  , username : String
-  , password : String
-  }
-
+type alias Location = String
 
 
 -- EFFECT MANAGER
